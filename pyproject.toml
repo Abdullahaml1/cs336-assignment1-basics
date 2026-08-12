@@ -19,6 +19,7 @@ dependencies = [
     "wandb>=0.25",
     "ty>=0.0.26",
     "ruff>=0.15.8",
+    "bpe",
 ]
 
 [build-system]
@@ -28,6 +29,9 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "cs336_basics"
 module-root = ""
+
+[tool.uv.sources]
+bpe = { path = "rust/bpe/target/python/wheelhouse/bpe-0.1.0-cp312-cp312-linux_x86_64.whl" }
 
 [tool.uv]
 package = true

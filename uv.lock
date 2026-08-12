@@ -12,6 +12,14 @@ wheels = [
 ]
 
 [[package]]
+name = "bpe"
+version = "0.1.0"
+source = { path = "rust/bpe/target/python/wheelhouse/bpe-0.1.0-cp312-cp312-linux_x86_64.whl" }
+wheels = [
+    { filename = "bpe-0.1.0-cp312-cp312-linux_x86_64.whl", hash = "sha256:da5974f0d981e17247e4cf2a1e6d1007afcf780e004fa63f4b1ad9a8ddaab92c" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.2.25"
 source = { registry = "https://pypi.org/simple" }
@@ -87,6 +95,7 @@ name = "cs336-basics"
 version = "26.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "bpe" },
     { name = "einops" },
     { name = "einx" },
     { name = "jaxtyping" },
@@ -105,6 +114,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bpe", path = "rust/bpe/target/python/wheelhouse/bpe-0.1.0-cp312-cp312-linux_x86_64.whl" },
     { name = "einops", specifier = ">=0.8" },
     { name = "einx", specifier = ">=0.4" },
     { name = "jaxtyping", specifier = ">=0.3" },

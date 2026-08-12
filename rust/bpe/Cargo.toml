@@ -1,0 +1,10 @@
+[package]
+name = "bpe"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+boltffi = "0.29.3"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
