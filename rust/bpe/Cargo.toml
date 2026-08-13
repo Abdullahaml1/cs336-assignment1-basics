@@ -7,4 +7,8 @@ edition = "2024"
 boltffi = "0.29.3"
 
 [lib]
-crate-type = ["staticlib", "cdylib"]
+# see: https://doc.rust-lang.org/reference/linkage.html
+# staticclib: create C like interface staticlly for other linaguages *.a file
+# cdylib: Creates dynamic C like interfce dynamilly for other languages *.so, .dll files
+# lib: stadaard rust build and format
+crate-type = ["staticlib", "cdylib", "lib"]
