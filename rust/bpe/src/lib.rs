@@ -7,7 +7,7 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
-pub fn find_chunk_boundries(
+fn find_chunk_boundries_rs(
     file: &mut File,
     desired_num_chunks: usize,
     split_special_token: &[u8],
@@ -50,7 +50,18 @@ pub fn find_chunk_boundries(
         }
     }
 
+    chunk_boundries.sort_unstable(); // sorting unstable fast
+    chunk_boundries.dedup(); // droping duplicate itmes
     chunk_boundries
+}
+#[export]
+pub fn find_chunk_boundries(
+    file_path: &str,
+    desired_num_chunks: usize,
+    split_special_token: &[u8],
+) -> Vec<u64> {
+    let mut file = File::open(file_path).expect("Can not open the file");
+    find_chunk_boundries_rs(&mut file, desired_num_chunks, split_special_token)
 }
 
 // struct TrainedBPEOut {

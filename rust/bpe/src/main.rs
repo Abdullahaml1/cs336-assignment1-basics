@@ -6,7 +6,7 @@ fn main() {
     dbg!(&file);
 
     let special_tokens = [1, 2, 3];
-    let out_vec = find_chunk_boundries(&mut file, 4, &special_tokens);
+    let out_vec = find_chunk_boundries("../../AGENTS.md", 4, &special_tokens);
     dbg!(&out_vec);
 
     let arr: [i32; 10] = std::array::from_fn(|i| i as i32);
