@@ -1,10 +1,23 @@
 use boltffi::*;
+use fancy_regex::Regex;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::thread;
 
 #[export]
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
+}
+
+#[export]
+pub fn find_chunk_boundries(
+    file_path: &str,
+    desired_num_chunks: usize,
+    split_special_token: &[u8],
+) -> Vec<u64> {
+    let mut file = File::open(file_path).expect("Can not open the file");
+    find_chunk_boundries_rs(&mut file, desired_num_chunks, split_special_token)
 }
 
 fn find_chunk_boundries_rs(
@@ -54,25 +67,109 @@ fn find_chunk_boundries_rs(
     chunk_boundries.dedup(); // droping duplicate itmes
     chunk_boundries
 }
-#[export]
-pub fn find_chunk_boundries(
-    file_path: &str,
-    desired_num_chunks: usize,
-    split_special_token: &[u8],
-) -> Vec<u64> {
-    let mut file = File::open(file_path).expect("Can not open the file");
-    find_chunk_boundries_rs(&mut file, desired_num_chunks, split_special_token)
+
+///Reads a file from start and end bytes postion and returns a string
+fn read_file(file: &mut File, start: u64, end: u64) -> String {
+    todo!();
 }
 
-// struct TrainedBPEOut {
-//     vocab: HashMap<u64, Bytes>,
-//     merges: Vec<(bytes, Bytes)>,
-// }
-//
-// pub fn train_bpe(input_path: Path, vocab_size: u64, speial_tokens: &[&str]) -> TrainedBPEOut {
-//
-//     // append special tokens in the vocab but not in the merges execpt for the
-// }
+fn get_words_count_worker(file_content: &String, re: &Regex) -> HashMap<String, u64> {
+    // using cheap &str in indexing
+    let mut w_to_c: HashMap<&str, u64> = HashMap::new();
+    for res in re.find_iter(file_content) {
+        match res {
+            Ok(m) => {
+                *w_to_c.entry(m.as_str()).or_insert(0) += 1;
+            }
+            Err(e) => {
+                panic!("Error during matching: {}", e);
+            }
+        }
+    }
+    // converting it into String for ouput
+    w_to_c
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect()
+}
+
+fn get_words_count(
+    input_path: &str,
+    split_special_token: &[u8],
+    desired_num_chunks: usize,
+) -> HashMap<String, u64> {
+    let mut file = File::open(input_path).expect("Can not open the file");
+    let boundries = find_chunk_boundries_rs(&mut file, desired_num_chunks, split_special_token);
+    let pat = r"(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+";
+    let re = Regex::new(pat).expect("Colud no pare the regs");
+    let mut word_to_count: HashMap<String, u64> = HashMap::new();
+
+    thread::scope(|s| {
+        let mut handlers = Vec::new();
+        for (idx, [start, end]) in boundries.array_windows::<2>().enumerate() {
+            let mut file_clone = match file.try_clone() {
+                Ok(f) => f,
+                Err(e) => {
+                    panic!(
+                        "Colud not clone file descriptor number: {}. because of {} Try to lower the `desired_num_chunks`",
+                        idx, e
+                    );
+                }
+            };
+            let re_clone = re.clone();
+            // count number of words
+            let h = s.spawn(move || {
+                // get word counts
+                let file_content = read_file(&mut file_clone, *start, *end);
+                get_words_count_worker(&file_content, &re_clone)
+            });
+            handlers.push(h);
+        }
+
+        // collecting results
+        for h in handlers {
+            match h.join() {
+                Ok(w_to_c) => {
+                    for (w, c) in &w_to_c {
+                        *word_to_count.entry(w.clone()).or_insert(0) += c;
+                    }
+                }
+                Err(e) => {
+                    panic!("Conting worker thread panciced with {:?}", e);
+                }
+            }
+        }
+    });
+    word_to_count
+}
+
+pub struct TrainedBPEOut<'a> {
+    vocab: Vec<&'a [u8]>,
+    merges: Vec<(Vec<u8>, Vec<u8>)>, // TODO: to &'a[u8]
+}
+
+pub fn train_bpe<'a>(
+    input_path: &str,
+    vocab_size: u64,
+    special_tokens: &'a [&str],
+    split_special_token: &[u8],
+    num_workers: usize,
+) -> TrainedBPEOut<'a> {
+    let mut vocab = Vec::new();
+    // add special tokens
+    for token in special_tokens {
+        vocab.push(token.as_bytes());
+    }
+
+    let words_to_counts: HashMap<String, u64> =
+        get_words_count(input_path, split_special_token, num_workers);
+
+    // computing merges
+    TrainedBPEOut {
+        vocab: vocab,
+        merges: Vec::new(),
+    }
+}
 
 #[cfg(test)]
 mod tests {

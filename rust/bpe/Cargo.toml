@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 boltffi = "0.29.3"
+fancy-regex = "0.19.0"
 
 [lib]
 # see: https://doc.rust-lang.org/reference/linkage.html
