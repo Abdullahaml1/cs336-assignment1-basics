@@ -18,7 +18,7 @@ fn main() {
 
     let special_tokens: Vec<u8> = b"<|endoftext|>".to_vec();
     let start = Instant::now();
-    let words_counts = get_words_count("../../data/owt_valid.txt", &special_tokens, 20);
+    let _words_counts = get_words_count("../../data/owt_valid.txt", &special_tokens, 20);
     let duration = start.elapsed();
     // dbg!(words_counts);
     println!("Total time is `{}`", duration.as_millis());
