@@ -3,6 +3,7 @@ use fancy_regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::os::unix::fs::FileExt;
 use std::thread;
 
 #[export]
@@ -69,8 +70,25 @@ fn find_chunk_boundries_rs(
 }
 
 ///Reads a file from start and end bytes postion and returns a string
-fn read_file(file: &mut File, start: u64, end: u64) -> String {
-    todo!();
+fn read_file(file: &File, start: u64, end: u64) -> String {
+    if end < start {
+        panic!(
+            "reding file {:?} start has to be  end got start: {}, end: {}",
+            file, start, end
+        );
+    }
+    let mut offset = start;
+    let len = end - start;
+    let mut filled = 0;
+    let mut buffer: Vec<u8> = vec![0; len as usize];
+    while filled < len {
+        let num_bytes_read = file
+            .read_at(&mut buffer[filled as usize..], offset)
+            .expect("Error reading the buffer");
+        offset += num_bytes_read as u64;
+        filled += num_bytes_read as u64;
+    }
+    String::from_utf8(buffer).expect("can not")
 }
 
 fn get_words_count_worker(file_content: &String, re: &Regex) -> HashMap<String, u64> {
@@ -93,7 +111,7 @@ fn get_words_count_worker(file_content: &String, re: &Regex) -> HashMap<String, 
         .collect()
 }
 
-fn get_words_count(
+pub fn get_words_count(
     input_path: &str,
     split_special_token: &[u8],
     desired_num_chunks: usize,
@@ -107,7 +125,7 @@ fn get_words_count(
     thread::scope(|s| {
         let mut handlers = Vec::new();
         for (idx, [start, end]) in boundries.array_windows::<2>().enumerate() {
-            let mut file_clone = match file.try_clone() {
+            let file_clone = match file.try_clone() {
                 Ok(f) => f,
                 Err(e) => {
                     panic!(
@@ -120,7 +138,7 @@ fn get_words_count(
             // count number of words
             let h = s.spawn(move || {
                 // get word counts
-                let file_content = read_file(&mut file_clone, *start, *end);
+                let file_content = read_file(&file_clone, *start, *end);
                 get_words_count_worker(&file_content, &re_clone)
             });
             handlers.push(h);
