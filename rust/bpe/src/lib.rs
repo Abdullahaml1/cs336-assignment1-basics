@@ -22,7 +22,7 @@ pub fn find_chunk_boundries(
 }
 
 fn find_chunk_boundries_rs(
-    file: &mut File,
+    file: &File,
     desired_num_chunks: usize,
     split_special_token: &[u8],
 ) -> Vec<u64> {
@@ -39,10 +39,11 @@ fn find_chunk_boundries_rs(
     let mut buffer: [u8; 4096] = [0; 4096]; // a buffer in stack fast
     for bi in 1..chunk_boundries.len() - 1 {
         let mut initial_position = chunk_boundries[bi];
-        file.seek(SeekFrom::Start(initial_position))
-            .expect("Could not seek file with boundary");
         loop {
-            let num_bytes_read = file.read(&mut buffer).expect("Error reading the buffer");
+            // reading from file at starting bytes without moving the file descriptor with file.seek
+            let num_bytes_read = file
+                .read_at(&mut buffer, initial_position)
+                .expect("Error reading the buffer");
 
             // EOF
             if num_bytes_read == 0 {
@@ -117,7 +118,7 @@ pub fn get_words_count(
     desired_num_chunks: usize,
 ) -> HashMap<String, u64> {
     let mut file = File::open(input_path).expect("Can not open the file");
-    let boundries = find_chunk_boundries_rs(&mut file, desired_num_chunks, split_special_token);
+    let boundries = find_chunk_boundries_rs(&file, desired_num_chunks, split_special_token);
     let pat = r"(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+";
     let re = Regex::new(pat).expect("Colud no pare the regs");
     let mut word_to_count: HashMap<String, u64> = HashMap::new();
@@ -179,8 +180,7 @@ pub fn train_bpe<'a>(
         vocab.push(token.as_bytes());
     }
 
-    let words_to_counts: HashMap<String, u64> =
-        get_words_count(input_path, split_special_token, num_workers);
+    let words_to_counts = get_words_count(input_path, split_special_token, num_workers);
 
     // computing merges
     TrainedBPEOut {
